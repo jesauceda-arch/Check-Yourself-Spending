@@ -1,50 +1,15 @@
-// Daily Expenses (Firebase Auth + Firestore) — ready for GitHub Pages
-// 1) Create Firebase project
-// 2) Enable Auth (Email/Password)
-// 3) Create Firestore database
-// 4) Add your firebaseConfig below
-// 5) Add your GitHub Pages domain to Firebase Authorized domains
+// Check Yourself Spending (LocalStorage MVP)
+// - Works on GitHub Pages immediately
+// - Monthly budget per month (YYYY-MM) with auto "reset" (new month = new budget/total)
+// - Expense tracking with categories
+// - Roast messages when you approach/exceed the budget
+// - Export category totals for the current month to .xlsx (SheetJS)
+//
+// FIREBASE LATER: Replace storage functions with Firestore calls.
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  getAuth,
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  query,
-  where,
-  orderBy,
-  getDocs,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-// ✅ PASTE YOUR FIREBASE WEB CONFIG HERE
-const firebaseConfig = {
-  apiKey: "PASTE_ME",
-  authDomain: "PASTE_ME",
-  projectId: "PASTE_ME",
-  storageBucket: "PASTE_ME",
-  messagingSenderId: "PASTE_ME",
-  appId: "PASTE_ME"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// ---------- Helpers ----------
 const $ = (id) => document.getElementById(id);
 
+// ---------- Helpers ----------
 function money(n) {
   const num = Number(n || 0);
   return num.toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -55,8 +20,12 @@ function yyyyMmDd(d = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function yyyyMm(d = new Date()) {
+  const pad = (x) => String(x).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+}
+
 function startOfWeek(date = new Date()) {
-  // week starts Monday
   const d = new Date(date);
   const day = (d.getDay() + 6) % 7; // Mon=0 ... Sun=6
   d.setDate(d.getDate() - day);
@@ -70,21 +39,45 @@ function startOfMonth(date = new Date()) {
   return d;
 }
 
-function toDateKey(dateObj) {
-  // dateObj could be Date or YYYY-MM-DD
-  if (typeof dateObj === "string") return dateObj;
-  return yyyyMmDd(dateObj);
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-// ---------- UI Elements ----------
-const authCard = $("authCard");
-const appCard = $("appCard");
+function uid() {
+  // Simple unique id for local entries
+  return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
 
-const authMsg = $("authMsg");
+// ---------- Local Storage Keys ----------
+const LS_EXPENSES = "cys_expenses_v1";
+const LS_BUDGETS  = "cys_budgets_v1";
+
+// ---------- State ----------
+let currentRange = "today";
+let currentMonthKey = yyyyMm(new Date());
+
+// ---------- UI Elements ----------
 const appMsg = $("appMsg");
 
-const emailEl = $("email");
-const passwordEl = $("password");
+const todayTotalPill = $("todayTotalPill");
+const rangeTotalPill = $("rangeTotalPill");
+const monthKeyPill = $("monthKeyPill");
+
+const monthlyLimitEl = $("monthlyLimit");
+const btnSaveBudget = $("btnSaveBudget");
+const btnExportXlsx = $("btnExportXlsx");
+const btnResetMonth = $("btnResetMonth");
+
+const budgetStatusEl = $("budgetStatus");
+const budgetPctEl = $("budgetPct");
+const budgetRemainingEl = $("budgetRemaining");
+const budgetBarEl = $("budgetBar");
+const roastBoxEl = $("roastBox");
 
 const amountEl = $("amount");
 const categoryEl = $("category");
@@ -92,188 +85,111 @@ const noteEl = $("note");
 const dateEl = $("date");
 
 const expenseListEl = $("expenseList");
-const todayTotalPill = $("todayTotalPill");
-const rangeTotalPill = $("rangeTotalPill");
-const userEmailEl = $("userEmail");
 
-let currentRange = "today"; // today | week | month
-let currentUser = null;
+// Default date = today
+dateEl.value = yyyyMmDd(new Date());
 
-// Set default date to today
-dateEl.value = yyyyMmDd();
-
-// ---------- Auth ----------
-$("btnSignUp").addEventListener("click", async () => {
-  authMsg.textContent = "";
-  const email = emailEl.value.trim();
-  const pass = passwordEl.value;
-
-  try {
-    await createUserWithEmailAndPassword(auth, email, pass);
-  } catch (e) {
-    authMsg.textContent = friendlyAuthError(e);
-  }
-});
-
-$("btnSignIn").addEventListener("click", async () => {
-  authMsg.textContent = "";
-  const email = emailEl.value.trim();
-  const pass = passwordEl.value;
-
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-  } catch (e) {
-    authMsg.textContent = friendlyAuthError(e);
-  }
-});
-
-$("btnForgot").addEventListener("click", async () => {
-  authMsg.textContent = "";
-  const email = emailEl.value.trim();
-  if (!email) {
-    authMsg.textContent = "Enter your email first, then click Forgot password.";
-    return;
-  }
-  try {
-    await sendPasswordResetEmail(auth, email);
-    authMsg.textContent = "Password reset email sent. Check your inbox.";
-  } catch (e) {
-    authMsg.textContent = friendlyAuthError(e);
-  }
-});
-
-$("btnSignOut").addEventListener("click", async () => {
-  await signOut(auth);
-});
-
-function friendlyAuthError(e) {
-  const code = e?.code || "";
-  if (code.includes("auth/invalid-email")) return "That email address doesn’t look right.";
-  if (code.includes("auth/missing-password")) return "Please enter a password.";
-  if (code.includes("auth/weak-password")) return "Password must be at least 6 characters.";
-  if (code.includes("auth/email-already-in-use")) return "That email already has an account. Click Sign in (or Forgot password).";
-  if (code.includes("auth/invalid-credential") || code.includes("auth/wrong-password")) return "Incorrect email or password.";
-  if (code.includes("auth/user-not-found")) return "No account found with that email. Click Create account.";
-  return e?.message || "Auth error. Try again.";
+// ---------- Storage Functions ----------
+function loadExpenses() {
+  try { return JSON.parse(localStorage.getItem(LS_EXPENSES) || "[]"); }
+  catch { return []; }
 }
 
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user || null;
-  authMsg.textContent = "";
-  appMsg.textContent = "";
-
-  if (!user) {
-    authCard.classList.remove("hidden");
-    appCard.classList.add("hidden");
-    todayTotalPill.textContent = "$0.00 today";
-    return;
-  }
-
-  // signed in
-  authCard.classList.add("hidden");
-  appCard.classList.remove("hidden");
-  userEmailEl.textContent = user.email || "";
-  await refresh();
-});
-
-// ---------- Expenses ----------
-$("btnAdd").addEventListener("click", async () => addExpenseFromInputs());
-
-$("btnQuickCoffee").addEventListener("click", async () => quickAdd(5, "Eat Out", "Coffee"));
-$("btnQuickLunch").addEventListener("click", async () => quickAdd(12, "Eat Out", "Lunch"));
-$("btnQuickGas").addEventListener("click", async () => quickAdd(40, "Gas", "Gas"));
-
-async function quickAdd(amount, category, note) {
-  amountEl.value = String(amount);
-  categoryEl.value = category;
-  noteEl.value = note;
-  await addExpenseFromInputs();
+function saveExpenses(items) {
+  localStorage.setItem(LS_EXPENSES, JSON.stringify(items));
 }
 
-async function addExpenseFromInputs() {
-  appMsg.textContent = "";
-  if (!currentUser) return;
-
-  const amountStr = (amountEl.value || "").trim().replace("$", "");
-  const amount = Number(amountStr);
-  const category = categoryEl.value;
-  const note = noteEl.value.trim();
-  const date = dateEl.value || yyyyMmDd();
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    appMsg.textContent = "Enter a valid amount (example: 12.50).";
-    return;
-  }
-
-  try {
-    await addDoc(collection(db, "expenses"), {
-      uid: currentUser.uid,
-      amount,
-      category,
-      note,
-      date, // YYYY-MM-DD
-      createdAt: serverTimestamp()
-    });
-
-    // clear quick fields
-    amountEl.value = "";
-    noteEl.value = "";
-
-    await refresh();
-  } catch (e) {
-    appMsg.textContent = e?.message || "Could not save expense.";
-  }
+function loadBudgets() {
+  try { return JSON.parse(localStorage.getItem(LS_BUDGETS) || "{}"); }
+  catch { return {}; }
 }
 
+function saveBudgets(map) {
+  localStorage.setItem(LS_BUDGETS, JSON.stringify(map));
+}
+
+function getBudgetForMonth(monthKey) {
+  const budgets = loadBudgets();
+  const limit = Number(budgets[monthKey] || 0);
+  return limit > 0 ? limit : 0;
+}
+
+function setBudgetForMonth(monthKey, limit) {
+  const budgets = loadBudgets();
+  budgets[monthKey] = Number(limit);
+  saveBudgets(budgets);
+}
+
+function deleteExpensesForMonth(monthKey) {
+  const items = loadExpenses().filter(e => !String(e.date || "").startsWith(monthKey));
+  saveExpenses(items);
+}
+
+function getExpensesForDateRange(startKey, endKey) {
+  // dates are YYYY-MM-DD so lexicographic comparisons work
+  return loadExpenses()
+    .filter(e => e.date >= startKey && e.date <= endKey)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+function addExpense(expense) {
+  const items = loadExpenses();
+  items.push(expense);
+  saveExpenses(items);
+}
+
+function deleteExpenseById(id) {
+  const items = loadExpenses().filter(e => e.id !== id);
+  saveExpenses(items);
+}
+
+// ---------- Range helpers ----------
 function rangeKeys() {
   const now = new Date();
+
   if (currentRange === "today") {
     const key = yyyyMmDd(now);
     return { startKey: key, endKey: key };
   }
+
   if (currentRange === "week") {
     const s = startOfWeek(now);
     const e = new Date(s);
     e.setDate(e.getDate() + 6);
     return { startKey: yyyyMmDd(s), endKey: yyyyMmDd(e) };
   }
-  // month
+
   const s = startOfMonth(now);
   const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return { startKey: yyyyMmDd(s), endKey: yyyyMmDd(e) };
 }
 
-async function fetchExpensesForRange() {
-  const { startKey, endKey } = rangeKeys();
-
-  // Firestore: query by uid and date range using string dates (YYYY-MM-DD works lexicographically)
-  const q = query(
-    collection(db, "expenses"),
-    where("uid", "==", currentUser.uid),
-    where("date", ">=", startKey),
-    where("date", "<=", endKey),
-    orderBy("date", "desc")
-  );
-
-  const snap = await getDocs(q);
-  const items = [];
-  snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-  return items;
+function monthStartEnd(monthKey) {
+  const [y, m] = monthKey.split("-").map(Number);
+  const start = new Date(y, m - 1, 1);
+  const end = new Date(y, m, 0);
+  return { startKey: yyyyMmDd(start), endKey: yyyyMmDd(end) };
 }
 
-async function fetchTodayTotal() {
-  const key = yyyyMmDd(new Date());
-  const q = query(
-    collection(db, "expenses"),
-    where("uid", "==", currentUser.uid),
-    where("date", "==", key)
-  );
-  const snap = await getDocs(q);
-  let total = 0;
-  snap.forEach((d) => { total += Number(d.data().amount || 0); });
-  return total;
+// ---------- Roast logic ----------
+function roastMessage(pctUsed, remaining, overBy) {
+  const pct = Math.round(pctUsed * 100);
+
+  if (!Number.isFinite(pctUsed)) return "Set a budget and start logging expenses.";
+
+  if (pctUsed < 0.35) return `${pct}% used. This is… surprisingly responsible. Keep going.`;
+  if (pctUsed < 0.50) return `${pct}% used. Solid start. Don’t turn this into “just one more thing.”`;
+  if (pctUsed < 0.65) return `${pct}% used. You’re trending toward regret. Tighten it up.`;
+  if (pctUsed < 0.80) return `${pct}% used. That “small purchase” pile is adding up fast.`;
+  if (pctUsed < 0.90) return `${pct}% used. You’re getting close. Please tell me there’s a plan.`;
+  if (pctUsed < 0.95) return `${pct}% used. ${money(remaining)} left. One random shopping stop and it’s cooked.`;
+  if (pctUsed < 1.0)  return `${pct}% used. ${money(remaining)} left. Maybe… stop “treating yourself.”`;
+  if (pctUsed < 1.10) return `Budget exceeded by ${money(overBy)}. Bold. Not smart, but bold.`;
+  if (pctUsed < 1.25) return `Over by ${money(overBy)}. Was it worth it? Don’t answer that.`;
+  return `Over by ${money(overBy)}. This isn’t tracking anymore—this is evidence.`;
 }
 
+// ---------- UI render ----------
 function renderList(items) {
   expenseListEl.innerHTML = "";
 
@@ -288,7 +204,7 @@ function renderList(items) {
 
     const left = document.createElement("div");
     left.innerHTML = `
-      <div style="font-weight:800; margin-bottom:4px;">${escapeHtml(it.note || "Expense")}</div>
+      <div style="font-weight:900; margin-bottom:4px;">${escapeHtml(it.note || "Expense")}</div>
       <div class="tag">${escapeHtml(it.category || "Other")}</div>
     `;
 
@@ -304,9 +220,9 @@ function renderList(items) {
     del.className = "trash";
     del.textContent = "🗑️";
     del.title = "Delete";
-    del.addEventListener("click", async () => {
-      await deleteDoc(doc(db, "expenses", it.id));
-      await refresh();
+    del.addEventListener("click", () => {
+      deleteExpenseById(it.id);
+      refresh();
     });
 
     wrap.appendChild(left);
@@ -318,37 +234,214 @@ function renderList(items) {
   }
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function calcTotal(items) {
+  return items.reduce((sum, x) => sum + Number(x.amount || 0), 0);
 }
 
-// ---------- Tabs ----------
+function refreshBudgetUI() {
+  const monthKey = currentMonthKey;
+  const limit = getBudgetForMonth(monthKey);
+
+  const { startKey, endKey } = monthStartEnd(monthKey);
+  const monthItems = getExpensesForDateRange(startKey, endKey);
+  const monthTotal = calcTotal(monthItems);
+
+  monthKeyPill.textContent = monthKey;
+
+  if (!limit || limit <= 0) {
+    budgetStatusEl.textContent = `${money(monthTotal)} / (no budget)`;
+    budgetPctEl.textContent = `—`;
+    budgetRemainingEl.textContent = `—`;
+    budgetBarEl.style.width = `0%`;
+    roastBoxEl.textContent = "Set a budget and start logging expenses.";
+    return;
+  }
+
+  const pctUsed = monthTotal / limit;
+  const pctLabel = Math.min(999, Math.round(pctUsed * 100));
+  const remaining = Math.max(0, limit - monthTotal);
+  const overBy = Math.max(0, monthTotal - limit);
+
+  budgetStatusEl.textContent = `${money(monthTotal)} / ${money(limit)}`;
+  budgetPctEl.textContent = `${pctLabel}%`;
+  budgetRemainingEl.textContent = overBy > 0 ? `-${money(overBy)}` : money(remaining);
+
+  const barPct = Math.min(100, Math.round(pctUsed * 100));
+  budgetBarEl.style.width = `${barPct}%`;
+
+  roastBoxEl.textContent = roastMessage(pctUsed, remaining, overBy);
+}
+
+function refreshTotalsAndList() {
+  // auto-switch month if needed (page left open)
+  const nowMonth = yyyyMm(new Date());
+  if (nowMonth !== currentMonthKey) {
+    currentMonthKey = nowMonth;
+    // load budget for new month into input
+    const limit = getBudgetForMonth(currentMonthKey);
+    monthlyLimitEl.value = limit ? String(limit) : "";
+  }
+
+  // Today total
+  const todayKey = yyyyMmDd(new Date());
+  const todayItems = getExpensesForDateRange(todayKey, todayKey);
+  todayTotalPill.textContent = `${money(calcTotal(todayItems))} today`;
+
+  // Range total + list
+  const { startKey, endKey } = rangeKeys();
+  const rangeItems = getExpensesForDateRange(startKey, endKey);
+  rangeTotalPill.textContent = `${money(calcTotal(rangeItems))}`;
+
+  renderList(rangeItems);
+  refreshBudgetUI();
+}
+
+function refresh() {
+  appMsg.textContent = "";
+  refreshTotalsAndList();
+}
+
+// ---------- Export to XLSX ----------
+function getCategoryTotalsForCurrentMonth() {
+  const { startKey, endKey } = monthStartEnd(currentMonthKey);
+  const monthItems = getExpensesForDateRange(startKey, endKey);
+
+  const map = {};
+  for (const it of monthItems) {
+    const cat = it.category || "Other";
+    const amt = Number(it.amount || 0);
+    map[cat] = (map[cat] || 0) + amt;
+  }
+
+  return Object.entries(map)
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
+function exportCategoryTotalsXlsx() {
+  if (!window.XLSX) {
+    appMsg.textContent = "XLSX export library failed to load. Refresh the page.";
+    return;
+  }
+
+  const rows = getCategoryTotalsForCurrentMonth();
+  const month = currentMonthKey;
+
+  const data = [
+    ["Month", month],
+    [],
+    ["Category", "Total"]
+  ];
+
+  let grand = 0;
+  for (const r of rows) {
+    data.push([r.category, Number(r.total.toFixed(2))]);
+    grand += r.total;
+  }
+
+  data.push([]);
+  data.push(["Grand Total", Number(grand.toFixed(2))]);
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [{ wch: 22 }, { wch: 14 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `Totals ${month}`);
+
+  XLSX.writeFile(wb, `spending_category_totals_${month}.xlsx`);
+}
+
+// ---------- Event handlers ----------
+$("btnAdd").addEventListener("click", () => {
+  const amountStr = (amountEl.value || "").trim().replace("$", "");
+  const amount = Number(amountStr);
+  const category = categoryEl.value;
+  const note = noteEl.value.trim();
+  const date = dateEl.value || yyyyMmDd();
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    appMsg.textContent = "Enter a valid amount (example: 12.50).";
+    return;
+  }
+
+  addExpense({
+    id: uid(),
+    amount,
+    category,
+    note,
+    date
+  });
+
+  amountEl.value = "";
+  noteEl.value = "";
+  refresh();
+});
+
+$("btnQuickCoffee").addEventListener("click", () => {
+  amountEl.value = "5";
+  categoryEl.value = "Eat Out";
+  noteEl.value = "Coffee";
+  $("btnAdd").click();
+});
+
+$("btnQuickLunch").addEventListener("click", () => {
+  amountEl.value = "12";
+  categoryEl.value = "Eat Out";
+  noteEl.value = "Lunch";
+  $("btnAdd").click();
+});
+
+$("btnQuickGas").addEventListener("click", () => {
+  amountEl.value = "40";
+  categoryEl.value = "Gas";
+  noteEl.value = "Gas";
+  $("btnAdd").click();
+});
+
+btnSaveBudget.addEventListener("click", () => {
+  const raw = (monthlyLimitEl.value || "").trim().replace("$", "");
+  const limit = Number(raw);
+
+  if (!Number.isFinite(limit) || limit <= 0) {
+    appMsg.textContent = "Enter a valid monthly limit (example: 600).";
+    return;
+  }
+
+  setBudgetForMonth(currentMonthKey, limit);
+  roastBoxEl.textContent = "Budget saved. Now make choices you won’t have to explain later.";
+  refresh();
+});
+
+btnExportXlsx.addEventListener("click", () => {
+  exportCategoryTotalsXlsx();
+});
+
+btnResetMonth.addEventListener("click", () => {
+  const ok = confirm(`Reset ${currentMonthKey}? This deletes this month's expenses (local only).`);
+  if (!ok) return;
+
+  deleteExpensesForMonth(currentMonthKey);
+  refresh();
+});
+
+// Tabs
 document.querySelectorAll(".tab").forEach((btn) => {
-  btn.addEventListener("click", async () => {
+  btn.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     currentRange = btn.dataset.range;
-    await refresh();
+    refresh();
   });
 });
 
-// ---------- Refresh ----------
-async function refresh() {
-  if (!currentUser) return;
+// ---------- Init ----------
+function init() {
+  currentMonthKey = yyyyMm(new Date());
+  monthKeyPill.textContent = currentMonthKey;
 
-  // Today total pill
-  const todayTotal = await fetchTodayTotal();
-  todayTotalPill.textContent = `${money(todayTotal)} today`;
+  const limit = getBudgetForMonth(currentMonthKey);
+  monthlyLimitEl.value = limit ? String(limit) : "";
 
-  // Range items + total
-  const items = await fetchExpensesForRange();
-  const rangeTotal = items.reduce((sum, x) => sum + Number(x.amount || 0), 0);
-  rangeTotalPill.textContent = `${money(rangeTotal)}`;
-
-  renderList(items);
+  refresh();
 }
+init();
