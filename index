@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Expenses</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Daily Expenses</h1>
+      <p class="sub">Track daily spending: eat out, shopping, gas, etc.</p>
+    </div>
+    <div class="pill" id="todayTotalPill">$0.00 today</div>
+  </header>
+
+  <main class="wrap">
+    <!-- AUTH -->
+    <section class="card" id="authCard">
+      <h2>Sign in</h2>
+      <p class="muted">Use email/password. (You can add Google later.)</p>
+
+      <div class="grid2">
+        <div>
+          <label>Email</label>
+          <input id="email" type="email" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="btnSignUp" class="secondary">Create account</button>
+        <button id="btnSignIn">Sign in</button>
+        <button id="btnForgot" class="link">Forgot password?</button>
+      </div>
+
+      <p class="error" id="authMsg"></p>
+    </section>
+
+    <!-- APP -->
+    <section class="card hidden" id="appCard">
+      <div class="row between">
+        <h2>Enter an expense</h2>
+        <div class="row">
+          <span class="muted" id="userEmail"></span>
+          <button id="btnSignOut" class="secondary">Sign out</button>
+        </div>
+      </div>
+
+      <div class="grid4">
+        <div>
+          <label>Amount</label>
+          <input id="amount" inputmode="decimal" placeholder="12.50" />
+        </div>
+
+        <div>
+          <label>Category</label>
+          <select id="category">
+            <option>Eat Out</option>
+            <option>Groceries</option>
+            <option>Gas</option>
+            <option>Shopping</option>
+            <option>Kids</option>
+            <option>Entertainment</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Date</label>
+          <input id="date" type="date" />
+        </div>
+
+        <div>
+          <label>Note (optional)</label>
+          <input id="note" placeholder="Chick-fil-A, Amazon, etc." />
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="btnAdd">Add expense</button>
+        <button id="btnQuickCoffee" class="secondary">+ Coffee ($5)</button>
+        <button id="btnQuickLunch" class="secondary">+ Lunch ($12)</button>
+        <button id="btnQuickGas" class="secondary">+ Gas ($40)</button>
+      </div>
+
+      <hr class="sep" />
+
+      <div class="row between">
+        <div class="tabs">
+          <button class="tab active" data-range="today">Today</button>
+          <button class="tab" data-range="week">This Week</button>
+          <button class="tab" data-range="month">This Month</button>
+        </div>
+        <div class="pill" id="rangeTotalPill">$0.00</div>
+      </div>
+
+      <div class="list" id="expenseList"></div>
+
+      <p class="muted tiny">Tip: This is a simple MVP. Next easy upgrades: category limits + export to CSV.</p>
+      <p class="error" id="appMsg"></p>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
