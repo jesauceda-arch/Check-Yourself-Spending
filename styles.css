@@ -17,7 +17,7 @@ input, select {
   outline: none; background: #fff;
 }
 input:focus, select:focus { border-color: #7aa7ff; box-shadow: 0 0 0 3px rgba(122,167,255,.25); }
-.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.row { display: flex; gap: 10px; indicate-content: center; align-items: center; flex-wrap: wrap; margin-top: 12px; }
 .between { justify-content: space-between; }
 .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 12px; }
@@ -59,6 +59,8 @@ button:active { transform: translateY(1px); }
 .date { color: #666; font-size: 12px; justify-self: end; }
 .trash { background: #fee2e2; color: #7f1d1d; border: 1px solid #fecaca; width: 44px; height: 38px; }
 
+.hidden { display: none !important; }
+
 /* Budget module */
 .cardish { border: 1px solid #ececf3; border-radius: 14px; padding: 12px; background: #fbfbff; }
 .budget { margin-top: 12px; }
@@ -73,3 +75,4 @@ button:active { transform: translateY(1px); }
   color: #1f2a44;
   font-weight: 900;
 }
+
