@@ -16,10 +16,42 @@
   </header>
 
   <main class="wrap">
-    <section class="card" id="appCard">
+
+    <!-- LOGIN -->
+    <section class="card" id="authCard">
+      <h2 style="margin:0;">Sign in</h2>
+      <p class="muted tiny" style="margin:6px 0 0;">
+        MVP login stored locally (for now). Firebase can replace this later.
+      </p>
+
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label>Email</label>
+          <input id="authEmail" type="email" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="btnSignIn" type="button">Sign in</button>
+        <button id="btnSignUp" type="button" class="secondary">Create account</button>
+        <button id="btnSignOut" type="button" class="secondary hidden">Sign out</button>
+      </div>
+
+      <p class="error" id="authMsg"></p>
+    </section>
+
+    <!-- APP -->
+    <section class="card hidden" id="appCard">
       <div class="row between">
         <h2 style="margin:0;">Enter an expense</h2>
-        <div class="pill" id="monthKeyPill">YYYY-MM</div>
+        <div class="row" style="margin-top:0;">
+          <span class="pill" id="userPill">Signed in</span>
+          <span class="pill" id="monthKeyPill">YYYY-MM</span>
+        </div>
       </div>
 
       <!-- MONTHLY BUDGET -->
@@ -39,9 +71,9 @@
           <div>
             <label>&nbsp;</label>
             <div class="row" style="margin-top:0;">
-              <button id="btnSaveBudget" class="secondary">Save budget</button>
-              <button id="btnExportXlsx" class="secondary">Export (XLSX)</button>
-              <button id="btnResetMonth" class="secondary">Reset this month</button>
+              <button id="btnSaveBudget" type="button" class="secondary">Save budget</button>
+              <button id="btnExportXlsx" type="button" class="secondary">Export (XLSX)</button>
+              <button id="btnResetMonth" type="button" class="secondary">Reset this month</button>
             </div>
           </div>
         </div>
@@ -90,10 +122,10 @@
       </div>
 
       <div class="row">
-        <button id="btnAdd">Add expense</button>
-        <button id="btnQuickCoffee" class="secondary">+ Coffee ($5)</button>
-        <button id="btnQuickLunch" class="secondary">+ Lunch ($12)</button>
-        <button id="btnQuickGas" class="secondary">+ Gas ($40)</button>
+        <button id="btnAdd" type="button">Add expense</button>
+        <button id="btnQuickCoffee" type="button" class="secondary">+ Coffee ($5)</button>
+        <button id="btnQuickLunch" type="button" class="secondary">+ Lunch ($12)</button>
+        <button id="btnQuickGas" type="button" class="secondary">+ Gas ($40)</button>
       </div>
 
       <hr class="sep" />
@@ -101,16 +133,16 @@
       <!-- RANGE TABS -->
       <div class="row between">
         <div class="tabs">
-          <button class="tab active" data-range="today">Today</button>
-          <button class="tab" data-range="week">This Week</button>
-          <button class="tab" data-range="month">This Month</button>
+          <button class="tab active" type="button" data-range="today">Today</button>
+          <button class="tab" type="button" data-range="week">This Week</button>
+          <button class="tab" type="button" data-range="month">This Month</button>
         </div>
         <div class="pill" id="rangeTotalPill">$0.00</div>
       </div>
 
       <div class="list" id="expenseList"></div>
 
-      <p class="muted tiny">Everything is stored locally in your browser for now (no Firebase yet).</p>
+      <p class="muted tiny">Saved locally under your login (for now).</p>
       <p class="error" id="appMsg"></p>
     </section>
   </main>
