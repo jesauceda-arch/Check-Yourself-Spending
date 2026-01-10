@@ -3,7 +3,204 @@ Check Yourself Spending — index.html (FULL)
 Includes:
 - Email/Password sign-in
 - Google + Apple buttons
+- Roast level selector at sign-in<!-- =====================================================
+Check Yourself Spending — index.html (FULL)
+Includes:
+- Email/Password sign-in
+- Google + Apple buttons
 - Roast level selector at sign-in
+- Remember me checkbox (controls session vs persistent)
+- Visible Sign out button inside the APP UI
+IMPORTANT: app.js MUST load as type="module"
+===================================================== -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Check Yourself Spending</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Check Yourself Spending</h1>
+      <p class="sub">Log daily spending. Set a monthly limit. Get judged (lovingly).</p>
+    </div>
+    <div class="pill" id="todayTotalPill">$0.00 today</div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- LOGIN -->
+    <section class="card" id="authCard">
+      <h2 style="margin:0;">Sign in</h2>
+      <p class="muted tiny" style="margin:6px 0 0;">
+        Sign in with Email, Google, or Apple. Your data syncs across devices.
+      </p>
+
+      <!-- Email / Password -->
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label>Email</label>
+          <input id="authEmail" type="email" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+      </div>
+
+      <!-- Roast + Remember Me -->
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label>Roast level (how mean?)</label>
+          <select id="roastLevelAuth">
+            <option value="nice">Nice</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="savage">Savage</option>
+          </select>
+        </div>
+
+        <div>
+          <label>&nbsp;</label>
+          <div class="row" style="margin-top:0;">
+            <label class="muted tiny" style="display:flex;gap:8px;align-items:center;">
+              <input type="checkbox" id="rememberMe" />
+              Remember me on this device
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Provider buttons -->
+      <div class="row" style="margin-top:10px;">
+        <button id="btnGoogle" type="button" class="secondary">Continue with Google</button>
+        <button id="btnApple" type="button" class="secondary">Continue with Apple</button>
+      </div>
+
+      <!-- Email buttons -->
+      <div class="row">
+        <button id="btnSignIn" type="button">Sign in (Email)</button>
+        <button id="btnSignUp" type="button" class="secondary">Create account</button>
+      </div>
+
+      <p class="error" id="authMsg"></p>
+    </section>
+
+    <!-- APP -->
+    <section class="card hidden" id="appCard">
+      <div class="row between">
+        <h2 style="margin:0;">Enter an expense</h2>
+        <div class="row" style="margin-top:0; gap:8px;">
+          <span class="pill" id="userPill">Signed in</span>
+          <span class="pill" id="monthKeyPill">YYYY-MM</span>
+          <!-- ✅ ALWAYS VISIBLE BUTTON (we will also toggle display in JS) -->
+          <button id="btnSignOutTop" type="button" class="secondary">Sign out</button>
+        </div>
+      </div>
+
+      <!-- MONTHLY BUDGET (UI only; wire later if you want) -->
+      <div class="budget cardish" style="margin-top:12px;">
+        <div class="row between">
+          <div>
+            <h3 style="margin:0;">Monthly Budget</h3>
+            <p class="muted tiny" style="margin:4px 0 0;">Set your limit. The app will track your choices.</p>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label>Monthly limit</label>
+            <input id="monthlyLimit" inputmode="decimal" placeholder="600" />
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <div class="row" style="margin-top:0;">
+              <button id="btnSaveBudget" type="button" class="secondary">Save budget</button>
+              <button id="btnExportXlsx" type="button" class="secondary">Export (XLSX)</button>
+              <button id="btnResetMonth" type="button" class="secondary">Reset this month</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row between" style="margin-top:10px;">
+          <div class="muted"><strong id="budgetStatus">$0 / $0</strong> • <span id="budgetPct">0%</span></div>
+          <div class="muted">Remaining: <strong id="budgetRemaining">$0</strong></div>
+        </div>
+
+        <div class="bar">
+          <div class="barFill" id="budgetBar"></div>
+        </div>
+
+        <div class="roast" id="roastBox">Roast level loaded. Start logging expenses.</div>
+      </div>
+
+      <!-- EXPENSE INPUT -->
+      <div class="grid4" style="margin-top:12px;">
+        <div>
+          <label>Amount</label>
+          <input id="amount" inputmode="decimal" placeholder="12.50" />
+        </div>
+
+        <div>
+          <label>Category</label>
+          <select id="category">
+            <option>Eat Out</option>
+            <option>Groceries</option>
+            <option>Gas</option>
+            <option>Shopping</option>
+            <option>Kids</option>
+            <option>Entertainment</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Date</label>
+          <input id="date" type="date" />
+        </div>
+
+        <div>
+          <label>Note (optional)</label>
+          <input id="note" placeholder="Chick-fil-A, Amazon, etc." />
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="btnAdd" type="button">Add expense</button>
+        <button id="btnQuickCoffee" type="button" class="secondary">+ Coffee ($5)</button>
+        <button id="btnQuickLunch" type="button" class="secondary">+ Lunch ($12)</button>
+        <button id="btnQuickGas" type="button" class="secondary">+ Gas ($40)</button>
+      </div>
+
+      <hr class="sep" />
+
+      <!-- RANGE TABS -->
+      <div class="row between">
+        <div class="tabs">
+          <button class="tab active" type="button" data-range="today">Today</button>
+          <button class="tab" type="button" data-range="week">This Week</button>
+          <button class="tab" type="button" data-range="month">This Month</button>
+        </div>
+        <div class="pill" id="rangeTotalPill">$0.00</div>
+      </div>
+
+      <div class="list" id="expenseList"></div>
+
+      <p class="muted tiny">Synced to your account (Firestore).</p>
+      <p class="error" id="appMsg"></p>
+    </section>
+  </main>
+
+  <!-- Excel export (SheetJS) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- ✅ MUST BE MODULE -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
+
 - Remember me checkbox (controls session vs persistent)
 - Visible Sign out button inside the APP UI
 IMPORTANT: app.js MUST load as type="module"
