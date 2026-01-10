@@ -1,9 +1,11 @@
 // =====================================================
-// Check Yourself Spending — app.js (FULL FILE)
-// Auth: Email/Password + Google + Apple
-// Data: Firestore per-user: users/{uid}/expenses
-// Roast level chosen at sign-in and saved per user.
-// Persistence: Session by default; "Remember me" enables Local persistence.
+// Check Yourself Spending — app.js (FULL)
+// Fixes:
+// ✅ Visible Sign out button (btnSignOutTop)
+// ✅ Email + Google + Apple sign-in
+// ✅ Roast level chosen at sign-in (saved per user in Firestore)
+// ✅ "Remember me" controls session vs persistent login
+// ✅ Expenses stored per user: users/{uid}/expenses
 // =====================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -61,13 +63,14 @@ const passwordInput = document.getElementById("authPassword");
 
 const btnSignIn = document.getElementById("btnSignIn");
 const btnSignUp = document.getElementById("btnSignUp");
-const btnSignOutTop = document.getElementById("btnSignOutTop");
 
 const btnGoogle = document.getElementById("btnGoogle");
 const btnApple = document.getElementById("btnApple");
 
 const roastLevelAuth = document.getElementById("roastLevelAuth");
 const rememberMe = document.getElementById("rememberMe");
+
+const btnSignOutTop = document.getElementById("btnSignOutTop");
 
 const authMsg = document.getElementById("authMsg");
 const userPill = document.getElementById("userPill");
@@ -90,6 +93,7 @@ function clearMsgs() { authMsg.textContent = ""; appMsg.textContent = ""; }
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
+if (dateInput) dateInput.value = todayISO();
 
 function money(n) {
   const num = Number(n || 0);
@@ -121,13 +125,13 @@ function roastLine(level) {
 const userDocRef = (uid) => doc(db, "users", uid);
 const expensesColRef = (uid) => collection(db, "users", uid, "expenses");
 
-// ---------- Persistence control (fixes “auto logged in” feeling) ----------
+// ---------- Persistence control ----------
 async function applyPersistenceFromUI() {
   const persist = rememberMe?.checked ? browserLocalPersistence : browserSessionPersistence;
   await setPersistence(auth, persist);
 }
 
-// ---------- Profile (roast level saved per user) ----------
+// ---------- Profile ----------
 async function ensureProfile(uid, email) {
   const ref = userDocRef(uid);
   const snap = await getDoc(ref);
@@ -154,7 +158,6 @@ async function saveRoastLevel(uid, level) {
   );
 }
 
-// Save roast level chosen on sign-in screen AFTER auth succeeds
 async function applyAuthScreenRoastChoice(user) {
   const level = roastLevelAuth?.value || "balanced";
   await saveRoastLevel(user.uid, level);
@@ -187,7 +190,7 @@ btnGoogle?.addEventListener("click", async () => {
     await applyPersistenceFromUI();
     const provider = new GoogleAuthProvider();
 
-    // Popup first; if blocked, fallback to redirect.
+    // Popup first; fallback to redirect if blocked
     try {
       await signInWithPopup(auth, provider);
     } catch {
@@ -204,13 +207,17 @@ btnApple?.addEventListener("click", async () => {
     await applyPersistenceFromUI();
     const provider = new OAuthProvider("apple.com");
 
-    // Apple is most reliable with redirect (esp. Safari/iOS)
+    // Apple is most reliable with redirect
     await signInWithRedirect(auth, provider);
   } catch (err) {
     showAuthError(err);
   }
 });
 
+// Handle redirect results (no-op if none)
+getRedirectResult(auth).catch(() => {});
+
+// ---------- Sign out (bulletproof + always visible) ----------
 async function doSignOut() {
   clearMsgs();
   try {
@@ -220,11 +227,11 @@ async function doSignOut() {
   }
 }
 
-btnSignOutTop?.addEventListener("click", doSignOut);
-
-// Handle redirect results (Apple/Google redirect flow)
-// (No-op if there isn't a redirect result)
-getRedirectResult(auth).catch(() => {});
+if (btnSignOutTop) {
+  btnSignOutTop.addEventListener("click", doSignOut);
+  // Make sure it never gets stuck hidden by CSS
+  btnSignOutTop.style.display = "none";
+}
 
 // ---------- Expenses ----------
 btnAdd?.addEventListener("click", async () => {
@@ -283,17 +290,14 @@ async function loadExpenses() {
   }
 }
 
-// Default date
-if (dateInput) dateInput.value = todayISO();
-
 // ---------- Auth state UI ----------
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     authCard.classList.add("hidden");
     appCard.classList.remove("hidden");
 
-    // show signout
-    if (btnSignOutTop) btnSignOutTop.classList.remove("hidden");
+    // ✅ force signout visible
+    if (btnSignOutTop) btnSignOutTop.style.display = "inline-block";
 
     userPill.textContent = user.email || "Signed in";
 
@@ -301,12 +305,10 @@ onAuthStateChanged(auth, async (user) => {
       // Ensure profile exists
       await ensureProfile(user.uid, user.email);
 
-      // Save roast level selected at login screen
-      if (roastLevelAuth) {
-        await applyAuthScreenRoastChoice(user);
-      }
+      // Save roast level selected at sign-in screen (overwrites profile)
+      if (roastLevelAuth) await applyAuthScreenRoastChoice(user);
 
-      // Reload profile to show correct level message
+      // Show roast message
       const updated = await ensureProfile(user.uid, user.email);
       if (roastBox) roastBox.textContent = `Roast level: ${updated.roastLevel}. ${roastLine(updated.roastLevel)}`;
 
@@ -318,11 +320,13 @@ onAuthStateChanged(auth, async (user) => {
     authCard.classList.remove("hidden");
     appCard.classList.add("hidden");
 
-    if (btnSignOutTop) btnSignOutTop.classList.add("hidden");
+    // ✅ hide signout when logged out
+    if (btnSignOutTop) btnSignOutTop.style.display = "none";
 
     userPill.textContent = "Signed out";
     expenseList.innerHTML = "";
   }
 });
+
 
 
