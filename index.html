@@ -1,3 +1,11 @@
+<!-- =====================================================
+Check Yourself Spending — index.html (FULL FILE)
+IMPORTANT:
+1) app.js must be loaded as a MODULE (type="module")
+2) This file includes: Email + Google + Apple sign-in buttons,
+   Roast level selection at sign-in, Remember Me checkbox,
+   and a Sign out button inside the app UI.
+===================================================== -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -21,9 +29,10 @@
     <section class="card" id="authCard">
       <h2 style="margin:0;">Sign in</h2>
       <p class="muted tiny" style="margin:6px 0 0;">
-        MVP login stored locally (for now). Firebase can replace this later.
+        Sign in with Email, Google, or Apple. Your data syncs across devices.
       </p>
 
+      <!-- Email / Password -->
       <div class="grid2" style="margin-top:12px;">
         <div>
           <label>Email</label>
@@ -35,10 +44,38 @@
         </div>
       </div>
 
+      <!-- Roast + Remember Me -->
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label>Roast level (how mean?)</label>
+          <select id="roastLevelAuth">
+            <option value="nice">Nice</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="savage">Savage</option>
+          </select>
+        </div>
+
+        <div>
+          <label>&nbsp;</label>
+          <div class="row" style="margin-top:0;">
+            <label class="muted tiny" style="display:flex;gap:8px;align-items:center;">
+              <input type="checkbox" id="rememberMe" />
+              Remember me on this device
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Provider buttons -->
+      <div class="row" style="margin-top:10px;">
+        <button id="btnGoogle" type="button" class="secondary">Continue with Google</button>
+        <button id="btnApple" type="button" class="secondary">Continue with Apple</button>
+      </div>
+
+      <!-- Email buttons -->
       <div class="row">
-        <button id="btnSignIn" type="button">Sign in</button>
+        <button id="btnSignIn" type="button">Sign in (Email)</button>
         <button id="btnSignUp" type="button" class="secondary">Create account</button>
-        <button id="btnSignOut" type="button" class="secondary hidden">Sign out</button>
       </div>
 
       <p class="error" id="authMsg"></p>
@@ -51,11 +88,12 @@
         <div class="row" style="margin-top:0;">
           <span class="pill" id="userPill">Signed in</span>
           <span class="pill" id="monthKeyPill">YYYY-MM</span>
+          <button id="btnSignOutTop" type="button" class="secondary">Sign out</button>
         </div>
       </div>
 
-      <!-- MONTHLY BUDGET -->
-      <div class="budget cardish">
+      <!-- MONTHLY BUDGET (UI stays the same; you can wire later) -->
+      <div class="budget cardish" style="margin-top:12px;">
         <div class="row between">
           <div>
             <h3 style="margin:0;">Monthly Budget</h3>
@@ -87,7 +125,7 @@
           <div class="barFill" id="budgetBar"></div>
         </div>
 
-        <div class="roast" id="roastBox">Set a budget and start logging expenses.</div>
+        <div class="roast" id="roastBox">Roast level loaded. Start logging expenses.</div>
       </div>
 
       <!-- EXPENSE INPUT -->
@@ -149,6 +187,8 @@
 
   <!-- Excel export (SheetJS) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- IMPORTANT: app.js must be a module because it uses import statements -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
