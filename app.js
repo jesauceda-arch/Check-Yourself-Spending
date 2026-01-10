@@ -35,7 +35,7 @@ console.log("✅ app.js loaded");
 
 // ---------- Firebase config ----------
 const firebaseConfig = {
-  apiKey: "AIzaSyAcjejaIXVB9RQpL-5RWlyezYugNCMN0NQ",
+  apiKey: "AIzaSyACjejaIXVB9RQpL-5RWlyezYugNCMN0NQ",
   authDomain: "check-yourself-spending.firebaseapp.com",
   projectId: "check-yourself-spending",
   storageBucket: "check-yourself-spending.firebasestorage.app",
