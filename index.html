@@ -1,10 +1,12 @@
 <!-- =====================================================
-Check Yourself Spending — index.html (FULL FILE)
-IMPORTANT:
-1) app.js must be loaded as a MODULE (type="module")
-2) This file includes: Email + Google + Apple sign-in buttons,
-   Roast level selection at sign-in, Remember Me checkbox,
-   and a Sign out button inside the app UI.
+Check Yourself Spending — index.html (FULL)
+Includes:
+- Email/Password sign-in
+- Google + Apple buttons
+- Roast level selector at sign-in
+- Remember me checkbox (controls session vs persistent)
+- Visible Sign out button inside the APP UI
+IMPORTANT: app.js MUST load as type="module"
 ===================================================== -->
 <!doctype html>
 <html lang="en">
@@ -85,14 +87,15 @@ IMPORTANT:
     <section class="card hidden" id="appCard">
       <div class="row between">
         <h2 style="margin:0;">Enter an expense</h2>
-        <div class="row" style="margin-top:0;">
+        <div class="row" style="margin-top:0; gap:8px;">
           <span class="pill" id="userPill">Signed in</span>
           <span class="pill" id="monthKeyPill">YYYY-MM</span>
+          <!-- ✅ ALWAYS VISIBLE BUTTON (we will also toggle display in JS) -->
           <button id="btnSignOutTop" type="button" class="secondary">Sign out</button>
         </div>
       </div>
 
-      <!-- MONTHLY BUDGET (UI stays the same; you can wire later) -->
+      <!-- MONTHLY BUDGET (UI only; wire later if you want) -->
       <div class="budget cardish" style="margin-top:12px;">
         <div class="row between">
           <div>
@@ -188,7 +191,7 @@ IMPORTANT:
   <!-- Excel export (SheetJS) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- IMPORTANT: app.js must be a module because it uses import statements -->
+  <!-- ✅ MUST BE MODULE -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
