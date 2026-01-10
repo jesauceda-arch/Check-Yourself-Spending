@@ -40,7 +40,8 @@ const firebaseConfig = {
   projectId: "check-yourself-spending",
   storageBucket: "check-yourself-spending.firebasestorage.app",
   messagingSenderId: "464693115714",
-  appId: "1:464693115714:web:f57fe7d28167e41df3a6db"
+  appId: "1:464693115714:web:f57fe7d28167e41df3a6db",
+  measurementId: "G-R7WG1R1MP7"
 };
 
 const app = initializeApp(firebaseConfig);
