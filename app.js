@@ -1,3 +1,6 @@
+// app.js (FULL) — Debug + Robust Auth
+// IMPORTANT: index.html must have: <script type="module" src="app.js"></script>
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
   getAuth,
@@ -8,11 +11,13 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   OAuthProvider,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
 import {
   getFirestore,
   doc,
@@ -26,7 +31,9 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-/* Firebase config */
+console.log("✅ app.js loaded");
+
+// ---------- Firebase config ----------
 const firebaseConfig = {
   apiKey: "AIzaSyAcjejaIXVB9RQpL-5RWlyezYugNCMN0NQ",
   authDomain: "check-yourself-spending.firebaseapp.com",
@@ -40,130 +47,239 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* DOM */
-const authCard = document.getElementById("authCard");
-const appCard = document.getElementById("appCard");
+// ---------- DOM (with safety checks) ----------
+const $ = (id) => document.getElementById(id);
 
-const email = document.getElementById("authEmail");
-const password = document.getElementById("authPassword");
-const roastSelect = document.getElementById("roastLevelAuth");
-const rememberMe = document.getElementById("rememberMe");
+const authCard = $("authCard");
+const appCard = $("appCard");
 
-const btnSignIn = document.getElementById("btnSignIn");
-const btnSignUp = document.getElementById("btnSignUp");
-const btnGoogle = document.getElementById("btnGoogle");
-const btnApple = document.getElementById("btnApple");
-const btnSignOut = document.getElementById("btnSignOutTop");
+const email = $("authEmail");
+const password = $("authPassword");
+const roastSelect = $("roastLevelAuth");
+const rememberMe = $("rememberMe");
 
-const userPill = document.getElementById("userPill");
-const roastBox = document.getElementById("roastBox");
-const expenseList = document.getElementById("expenseList");
-const amount = document.getElementById("amount");
-const category = document.getElementById("category");
-const dateInput = document.getElementById("date");
-const note = document.getElementById("note");
-const btnAdd = document.getElementById("btnAdd");
-const authMsg = document.getElementById("authMsg");
-const appMsg = document.getElementById("appMsg");
+const btnSignIn = $("btnSignIn");
+const btnSignUp = $("btnSignUp");
+const btnGoogle = $("btnGoogle");
+const btnApple = $("btnApple");
+const btnSignOut = $("btnSignOutTop");
 
-/* Helpers */
-const today = () => new Date().toISOString().slice(0,10);
-dateInput.value = today();
+const userPill = $("userPill");
+const roastBox = $("roastBox");
+const expenseList = $("expenseList");
+const amount = $("amount");
+const category = $("category");
+const dateInput = $("date");
+const note = $("note");
+const btnAdd = $("btnAdd");
+
+const authMsg = $("authMsg");
+const appMsg = $("appMsg");
+
+// Quick sanity log if IDs mismatch
+const required = {
+  authCard, appCard, email, password, roastSelect, rememberMe,
+  btnSignIn, btnSignUp, btnGoogle, btnApple, btnSignOut,
+  userPill, roastBox, expenseList, amount, category, dateInput, note, btnAdd,
+  authMsg, appMsg
+};
+
+const missing = Object.entries(required).filter(([, v]) => !v).map(([k]) => k);
+if (missing.length) {
+  console.error("❌ Missing elements in HTML:", missing);
+  alert("Your index.html is missing these IDs: " + missing.join(", "));
+}
+
+// ---------- Helpers ----------
+function setAuthError(err) {
+  console.error(err);
+  authMsg.textContent = err?.message || String(err);
+}
+function setAppError(err) {
+  console.error(err);
+  appMsg.textContent = err?.message || String(err);
+}
+function clearMsgs() {
+  authMsg.textContent = "";
+  appMsg.textContent = "";
+}
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+dateInput.value = todayISO();
 
 function roast(level) {
   const lines = {
     nice: ["Nice choice.", "You're being intentional."],
     balanced: ["We're watching this.", "Careful now."],
-    savage: ["You didn't need that.", "Your budget flinched."]
+    savage: ["You didn’t need that.", "Your budget just flinched."]
   };
-  return lines[level][Math.floor(Math.random()*lines[level].length)];
+  const arr = lines[level] || lines.balanced;
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/* Persistence */
 async function applyPersistence() {
-  await setPersistence(
-    auth,
-    rememberMe.checked ? browserLocalPersistence : browserSessionPersistence
+  const mode = rememberMe.checked ? browserLocalPersistence : browserSessionPersistence;
+  await setPersistence(auth, mode);
+}
+
+// ---------- Handle redirect results (Apple/Google redirect) ----------
+getRedirectResult(auth).catch((err) => {
+  // This will show if Apple/Google redirect fails
+  if (err) setAuthError(err);
+});
+
+// ---------- Auth actions (with UI errors) ----------
+btnSignUp.addEventListener("click", async () => {
+  clearMsgs();
+  try {
+    await applyPersistence();
+    await createUserWithEmailAndPassword(auth, email.value.trim(), password.value);
+  } catch (err) {
+    setAuthError(err);
+  }
+});
+
+btnSignIn.addEventListener("click", async () => {
+  clearMsgs();
+  try {
+    await applyPersistence();
+    await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
+  } catch (err) {
+    setAuthError(err);
+  }
+});
+
+btnGoogle.addEventListener("click", async () => {
+  clearMsgs();
+  try {
+    await applyPersistence();
+    const provider = new GoogleAuthProvider();
+
+    // Popup first (desktop). If blocked, fallback to redirect.
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (popupErr) {
+      console.warn("Popup failed, trying redirect:", popupErr?.message || popupErr);
+      await signInWithRedirect(auth, provider);
+    }
+  } catch (err) {
+    setAuthError(err);
+  }
+});
+
+btnApple.addEventListener("click", async () => {
+  clearMsgs();
+  try {
+    await applyPersistence();
+    const provider = new OAuthProvider("apple.com");
+    // Apple works best with redirect
+    await signInWithRedirect(auth, provider);
+  } catch (err) {
+    setAuthError(err);
+  }
+});
+
+btnSignOut.addEventListener("click", async () => {
+  clearMsgs();
+  try {
+    await signOut(auth);
+  } catch (err) {
+    setAuthError(err);
+  }
+});
+
+// ---------- Firestore profile (roast level saved per user) ----------
+async function upsertProfile(uid, emailAddr, roastLevel) {
+  await setDoc(
+    doc(db, "users", uid),
+    { email: emailAddr || "", roastLevel: roastLevel || "balanced", updatedAt: serverTimestamp() },
+    { merge: true }
   );
 }
 
-/* Auth */
-btnSignUp.onclick = async () => {
-  await applyPersistence();
-  await createUserWithEmailAndPassword(auth, email.value, password.value);
-};
+async function getProfile(uid) {
+  const snap = await getDoc(doc(db, "users", uid));
+  return snap.exists() ? snap.data() : { roastLevel: "balanced" };
+}
 
-btnSignIn.onclick = async () => {
-  await applyPersistence();
-  await signInWithEmailAndPassword(auth, email.value, password.value);
-};
+// ---------- Expenses ----------
+async function loadExpenses(uid) {
+  expenseList.innerHTML = "";
+  try {
+    const qy = query(collection(db, "users", uid, "expenses"), orderBy("date", "desc"));
+    const snap = await getDocs(qy);
 
-btnGoogle.onclick = async () => {
-  await applyPersistence();
-  await signInWithPopup(auth, new GoogleAuthProvider());
-};
+    snap.forEach((d) => {
+      const e = d.data();
+      const div = document.createElement("div");
+      div.className = "expense";
+      div.textContent = `$${Number(e.amount || 0).toFixed(2)} — ${e.category} (${e.date})`;
+      expenseList.appendChild(div);
+    });
+  } catch (err) {
+    setAppError(err);
+  }
+}
 
-btnApple.onclick = async () => {
-  await applyPersistence();
-  await signInWithRedirect(auth, new OAuthProvider("apple.com"));
-};
+btnAdd.addEventListener("click", async () => {
+  clearMsgs();
+  const user = auth.currentUser;
+  if (!user) return setAppError("You must be signed in.");
 
-btnSignOut.onclick = async () => {
-  await signOut(auth);
-};
+  const amt = Number(amount.value);
+  if (!Number.isFinite(amt) || amt <= 0) return setAppError("Enter a valid amount.");
 
-/* Auth state */
-onAuthStateChanged(auth, async user => {
+  try {
+    await addDoc(collection(db, "users", user.uid, "expenses"), {
+      amount: amt,
+      category: category.value,
+      date: dateInput.value || todayISO(),
+      note: note.value || "",
+      createdAt: serverTimestamp()
+    });
+
+    amount.value = "";
+    note.value = "";
+
+    const prof = await getProfile(user.uid);
+    roastBox.textContent = roast(prof.roastLevel);
+
+    await loadExpenses(user.uid);
+  } catch (err) {
+    setAppError(err);
+  }
+});
+
+// ---------- Auth state ----------
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     authCard.classList.add("hidden");
     appCard.classList.remove("hidden");
+
+    // Make signout always visible when logged in
     btnSignOut.style.display = "inline-block";
-    userPill.textContent = user.email;
 
-    await setDoc(doc(db,"users",user.uid),{
-      roastLevel: roastSelect.value,
-      updatedAt: serverTimestamp()
-    },{merge:true});
+    userPill.textContent = user.email || "Signed in";
 
-    roastBox.textContent = roast(roastSelect.value);
-    loadExpenses(user.uid);
+    try {
+      // Save roast level chosen on login screen
+      await upsertProfile(user.uid, user.email, roastSelect.value);
+
+      const prof = await getProfile(user.uid);
+      roastBox.textContent = `Roast level: ${prof.roastLevel}. ${roast(prof.roastLevel)}`;
+
+      await loadExpenses(user.uid);
+    } catch (err) {
+      setAppError(err);
+    }
   } else {
     authCard.classList.remove("hidden");
     appCard.classList.add("hidden");
     btnSignOut.style.display = "none";
+    userPill.textContent = "";
+    expenseList.innerHTML = "";
   }
 });
-
-/* Expenses */
-btnAdd.onclick = async () => {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  await addDoc(collection(db,"users",user.uid,"expenses"),{
-    amount:Number(amount.value),
-    category:category.value,
-    date:dateInput.value,
-    note:note.value,
-    createdAt: serverTimestamp()
-  });
-
-  amount.value="";
-  note.value="";
-  roastBox.textContent = roast(roastSelect.value);
-  loadExpenses(user.uid);
-};
-
-async function loadExpenses(uid){
-  expenseList.innerHTML="";
-  const q = query(collection(db,"users",uid,"expenses"),orderBy("date","desc"));
-  const snap = await getDocs(q);
-  snap.forEach(d=>{
-    const e=d.data();
-    const div=document.createElement("div");
-    div.textContent=`$${e.amount} — ${e.category} (${e.date})`;
-    expenseList.appendChild(div);
-  });
-}
-
 
 
